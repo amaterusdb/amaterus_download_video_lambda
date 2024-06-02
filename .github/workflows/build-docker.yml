@@ -35,6 +35,7 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
+            type=ref,event=branch,suffix=-{{sha}}
             type=ref,event=branch
             type=ref,event=pr
             type=pep440,pattern={{version}}
@@ -48,7 +49,7 @@ jobs:
         with:
           images: ${{ vars.ECR_REPOSITORY }}
           tags: |
-            type=ref,event=branch
+            type=ref,event=branch,suffix=-{{sha}}
             type=pep440,pattern={{version}}
             type=pep440,pattern={{major}}
 
