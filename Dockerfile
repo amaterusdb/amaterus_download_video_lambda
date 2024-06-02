@@ -56,7 +56,7 @@ EOF
 COPY ./pyproject.toml ./poetry.lock /work/
 RUN poetry export -o requirements.txt
 
-FROM public.ecr.aws/lambda/python:3.12 AS runtime-stage
+FROM ubuntu:22.04 AS ffmpeg-stage
 
 RUN <<EOF
     set -eu
@@ -64,11 +64,32 @@ RUN <<EOF
     apt-get update
 
     apt-get install -y \
-        ffmpeg
+        wget \
+        xz-utils
 
     apt-get clean
     rm -rf /var/lib/apt/lists/*
 EOF
+
+WORKDIR /work
+ARG FFMPEG_URL="https://github.com/amaterusdb/amaterus_ffmpeg_mirror_releases/releases/download/v0.1.0.20240603/ffmpeg-git-20240524-arm64-static.tar.xz"
+ARG FFMPEG_HASH_SHA256="baa6a79a305e8762e9c22e1208fb8717c58d97fa89235ccf9fb18aa0f6d192a1"
+RUN <<EOF
+    set -eu
+
+    wget -O ffmpeg.tar.xz "${FFMPEG_URL}"
+    echo -n "${FFMPEG_HASH_SHA256}  ffmpeg.tar.xz" | sha256sum --check -
+
+    mkdir ./ffmpeg
+    tar --strip-components 1 -C ./ffmpeg/ -xf ffmpeg.tar.xz
+
+    mv ./ffmpeg/ /opt/ffmpeg
+EOF
+
+FROM public.ecr.aws/lambda/python:3.12 AS runtime-stage
+
+ENV PATH=/opt/ffmpeg:${PATH}
+COPY --from=ffmpeg-stage /opt/ffmpeg /opt/ffmpeg
 
 COPY --from=poetry-export-stage /work/requirements.txt "${LAMBDA_TASK_ROOT}"
 RUN pip install -r "${LAMBDA_TASK_ROOT}/requirements.txt"
