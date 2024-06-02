@@ -93,7 +93,8 @@ def download_video(video_url: str) -> Iterator[DownloadVideoResult]:
 
         try:
             returncode = ydl.download([video_url])
-        except YoutubeDLError:
+        except YoutubeDLError as error:
+            logger.exception(error)
             raise DownloadVideoError("yt-dlp errored.")
 
         if returncode != 0:
@@ -119,7 +120,8 @@ def download_video(video_url: str) -> Iterator[DownloadVideoResult]:
 
         try:
             probe = ffmpeg.probe(str(video_file))
-        except ffmpeg.Error:
+        except ffmpeg.Error as error:
+            logger.exception(error)
             raise DownloadVideoError("ffmpeg errored.")
 
         format = probe["format"]
@@ -194,7 +196,8 @@ def lambda_handler(event: dict, context: dict) -> None:
                 },
                 ReturnValues="ALL_NEW",
             )
-        except botocore.exceptions.ClientError:
+        except botocore.exceptions.ClientError as error:
+            logger.exception(error)
             raise Exception("Failed to update status to 'downloading'.")
 
         downloading_video_item = downloading_video_item_result["Attributes"]
@@ -223,9 +226,11 @@ def lambda_handler(event: dict, context: dict) -> None:
                             "ContentType": download_result.content_type,
                         },
                     )
-                except botocore.exceptions.ClientError:
+                except botocore.exceptions.ClientError as error:
+                    logger.exception(error)
                     raise Exception("Failed to upload video.")
-        except DownloadVideoError:
+        except DownloadVideoError as error:
+            logger.exception(error)
             raise Exception("Failed to download video.")
 
         set_expressions = [
@@ -324,5 +329,6 @@ def lambda_handler(event: dict, context: dict) -> None:
                 },
                 ExpressionAttributeValues=expression_attribute_values,
             )
-        except botocore.exceptions.ClientError:
+        except botocore.exceptions.ClientError as error:
+            logger.exception(error)
             raise Exception("Failed to update status to 'downloaded'.")
