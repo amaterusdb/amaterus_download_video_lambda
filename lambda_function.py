@@ -179,10 +179,6 @@ def lambda_handler(event: dict, context: dict) -> None:
     # SQS message event
     records = event["Records"]
     for record in records:
-        event_name = record["eventName"]
-        if event_name != "aws:sqs":
-            continue
-
         video_id = record["body"]
 
         try:
