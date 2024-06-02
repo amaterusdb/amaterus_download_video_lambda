@@ -58,6 +58,8 @@ RUN poetry export -o requirements.txt
 
 FROM ubuntu:22.04 AS ffmpeg-stage
 
+ARG DEBIAN_FRONTEND=noninteractive
+
 RUN <<EOF
     set -eu
 
