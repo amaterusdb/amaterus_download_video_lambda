@@ -224,7 +224,7 @@ def lambda_handler(event: dict, context: dict) -> None:
                         },
                     )
                 except botocore.exceptions.ClientError:
-                    raise Exception("Failed to update status to 'downloaded'.")
+                    raise Exception("Failed to upload video.")
         except DownloadVideoError:
             raise Exception("Failed to download video.")
 
