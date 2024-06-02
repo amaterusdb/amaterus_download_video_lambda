@@ -65,7 +65,6 @@ class DownloadVideoResult:
     duration: str
     width: str | None
     height: str | None
-    frame_count: str | None
     video_codec_name: str | None
     video_codec_tag_string: str | None
     audio_codec_name: str | None
@@ -140,13 +139,11 @@ def download_video(video_url: str) -> Iterator[DownloadVideoResult]:
         if video_stream is not None:
             width = str(video_stream["width"])
             height = str(video_stream["height"])
-            frame_count = str(video_stream["nb_frames"])
             video_codec_name = video_stream["codec_name"]
             video_codec_tag_string = video_stream["codec_tag_string"]
         else:
             width = None
             height = None
-            frame_count = None
             video_codec_name = None
             video_codec_tag_string = None
 
@@ -164,7 +161,6 @@ def download_video(video_url: str) -> Iterator[DownloadVideoResult]:
             duration=duration,
             width=width,
             height=height,
-            frame_count=frame_count,
             video_codec_name=video_codec_name,
             video_codec_tag_string=video_codec_tag_string,
             audio_codec_name=audio_codec_name,
@@ -261,14 +257,6 @@ def lambda_handler(event: dict, context: dict) -> None:
         else:
             remove_expressions.append("#Height")
 
-        if download_result.frame_count is not None:
-            set_expressions.append("#FrameCount = :FrameCount")
-            expression_attribute_values[":FrameCount"] = {
-                "S": download_result.frame_count
-            }
-        else:
-            remove_expressions.append("#FrameCount")
-
         if download_result.video_codec_name is not None:
             set_expressions.append("#VideoCodecName = :VideoCodecName")
             expression_attribute_values[":VideoCodecName"] = {
@@ -321,7 +309,6 @@ def lambda_handler(event: dict, context: dict) -> None:
                     "#Duration": "Duration",
                     "#Width": "Width",
                     "#Height": "Height",
-                    "#FrameCount": "FrameCount",
                     "#VideoCodecName": "VideoCodecName",
                     "#VideoCodecTagString": "VideoCodecTagString",
                     "#AudioCodecName": "AudioCodecName",
