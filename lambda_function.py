@@ -187,12 +187,12 @@ def lambda_handler(event: dict, context: dict) -> None:
             downloading_video_item_result = dynamodb.update_item(
                 TableName=table_name,
                 Key={"VideoId": {"S": video_id}},
-                UpdateExpression="SET #Status = :downloading",
+                UpdateExpression="SET #Status = :Status",
                 ExpressionAttributeNames={
                     "#Status": "Status",
                 },
                 ExpressionAttributeValues={
-                    ":downloading": {"S": "downloading"},
+                    ":Status": {"S": "downloading"},
                 },
                 ReturnValues="ALL_NEW",
             )
