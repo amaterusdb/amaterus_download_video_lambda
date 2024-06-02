@@ -184,7 +184,7 @@ def lambda_handler(event: dict, context: dict) -> None:
         try:
             downloading_video_item_result = dynamodb.update_item(
                 TableName=table_name,
-                Key={"VideoId": {"S", video_id}},
+                Key={"VideoId": {"S": video_id}},
                 UpdateExpression="SET #Status = :downloading",
                 ExpressionAttributeNames={
                     "#Status": "Status",
@@ -299,7 +299,7 @@ def lambda_handler(event: dict, context: dict) -> None:
         try:
             dynamodb.update_item(
                 TableName=table_name,
-                Key={"VideoId": {"S", video_id}},
+                Key={"VideoId": {"S": video_id}},
                 UpdateExpression=(
                     "SET {}".format(", ".join(set_expressions))
                     + (
