@@ -58,6 +58,16 @@ RUN poetry export -o requirements.txt
 
 FROM public.ecr.aws/lambda/python:3.12 AS runtime-stage
 
+RUN <<EOF
+    apt-get update
+
+    apt-get install -y \
+        ffmpeg
+
+    apt-get clean
+    rm -rf /var/lib/apt/lists/*
+EOF
+
 COPY --from=poetry-export-stage /work/requirements.txt "${LAMBDA_TASK_ROOT}"
 RUN pip install -r "${LAMBDA_TASK_ROOT}/requirements.txt"
 
