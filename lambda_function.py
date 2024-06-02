@@ -239,7 +239,7 @@ def lambda_handler(event: dict, context: dict) -> None:
             "#Size = :Size",
             "#Duration = :Duration",
         ]
-        set_values = {
+        expression_attribute_values = {
             ":Status": {"S": "downloaded"},
             ":ObjectKey": {"S": object_key},
             ":ContentType": {"S": download_result.content_type},
@@ -250,31 +250,35 @@ def lambda_handler(event: dict, context: dict) -> None:
 
         if download_result.width is not None:
             set_expressions.append("#Width = :Width")
-            set_values[":Width"] = {"N": download_result.width}
+            expression_attribute_values[":Width"] = {"N": download_result.width}
         else:
             remove_expressions.append("#Width")
 
         if download_result.height is not None:
             set_expressions.append("#Height = :Height")
-            set_values[":Height"] = {"N": download_result.height}
+            expression_attribute_values[":Height"] = {"N": download_result.height}
         else:
             remove_expressions.append("#Height")
 
         if download_result.frame_count is not None:
             set_expressions.append("#FrameCount = :FrameCount")
-            set_values[":FrameCount"] = {"S": download_result.frame_count}
+            expression_attribute_values[":FrameCount"] = {
+                "S": download_result.frame_count
+            }
         else:
             remove_expressions.append("#FrameCount")
 
         if download_result.video_codec_name is not None:
             set_expressions.append("#VideoCodecName = :VideoCodecName")
-            set_values[":VideoCodecName"] = {"S": download_result.video_codec_name}
+            expression_attribute_values[":VideoCodecName"] = {
+                "S": download_result.video_codec_name
+            }
         else:
             remove_expressions.append("#VideoCodecName")
 
         if download_result.video_codec_tag_string is not None:
             set_expressions.append("#VideoCodecTagString = :VideoCodecTagString")
-            set_values[":VideoCodecTagString"] = {
+            expression_attribute_values[":VideoCodecTagString"] = {
                 "S": download_result.video_codec_tag_string
             }
         else:
@@ -282,13 +286,15 @@ def lambda_handler(event: dict, context: dict) -> None:
 
         if download_result.audio_codec_name is not None:
             set_expressions.append("#AudioCodecName = :AudioCodecName")
-            set_values[":AudioCodecName"] = {"S": download_result.audio_codec_name}
+            expression_attribute_values[":AudioCodecName"] = {
+                "S": download_result.audio_codec_name
+            }
         else:
             remove_expressions.append("#AudioCodecName")
 
         if download_result.audio_codec_tag_string is not None:
             set_expressions.append("#AudioCodecTagString = :AudioCodecTagString")
-            set_values[":AudioCodecTagString"] = {
+            expression_attribute_values[":AudioCodecTagString"] = {
                 "S": download_result.audio_codec_tag_string
             }
         else:
@@ -320,9 +326,7 @@ def lambda_handler(event: dict, context: dict) -> None:
                     "#AudioCodecName": "AudioCodecName",
                     "#AudioCodecTagString": "AudioCodecTagString",
                 },
-                ExpressionAttributeValues={
-                    **set_values,
-                },
+                ExpressionAttributeValues=expression_attribute_values,
             )
         except botocore.exceptions.ClientError:
             raise Exception("Failed to update status to 'downloaded'.")
