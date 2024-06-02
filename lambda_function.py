@@ -63,8 +63,8 @@ class DownloadVideoResult:
     content_type: str
     size: str
     duration: str
-    width: int | None
-    height: int | None
+    width: str | None
+    height: str | None
     frame_count: str | None
     video_codec_name: str | None
     video_codec_tag_string: str | None
@@ -136,8 +136,8 @@ def download_video(video_url: str) -> Iterator[DownloadVideoResult]:
         duration = str(format["duration"])
 
         if video_stream is not None:
-            width = int(video_stream["width"])
-            height = int(video_stream["height"])
+            width = str(video_stream["width"])
+            height = str(video_stream["height"])
             frame_count = str(video_stream["nb_frames"])
             video_codec_name = video_stream["codec_name"]
             video_codec_tag_string = video_stream["codec_tag_string"]
@@ -189,11 +189,12 @@ def lambda_handler(event: dict, context: dict) -> None:
             downloading_video_item_result = dynamodb.update_item(
                 TableName=table_name,
                 Key={"VideoId": {"S", video_id}},
-                AttributeUpdates={
-                    "Status": {
-                        "Action": "PUT",
-                        "Value": {"S": "downloading"},
-                    },
+                UpdateExpression="SET #Status = :downloading",
+                ExpressionAttributeNames={
+                    "#Status": "Status",
+                },
+                ExpressionAttributeValues={
+                    ":downloading": {"S": "downloading"},
                 },
                 ReturnValues="ALL_NEW",
             )
@@ -231,59 +232,96 @@ def lambda_handler(event: dict, context: dict) -> None:
         except DownloadVideoError:
             raise Exception("Failed to download video.")
 
+        set_expressions = [
+            "#Status = :Status",
+            "#ObjectKey = :ObjectKey",
+            "#ContentType = :ContentType",
+            "#Size = :Size",
+            "#Duration = :Duration",
+        ]
+        set_values = {
+            ":Status": {"S": "downloaded"},
+            ":ObjectKey": {"S": object_key},
+            ":ContentType": {"S": download_result.content_type},
+            ":Size": {"S": download_result.size},
+            ":Duration": {"S": download_result.duration},
+        }
+        remove_expressions: list[str] = []
+
+        if download_result.width is not None:
+            set_expressions.append("#Width = :Width")
+            set_values[":Width"] = {"N": download_result.width}
+        else:
+            remove_expressions.append("#Width")
+
+        if download_result.height is not None:
+            set_expressions.append("#Height = :Height")
+            set_values[":Height"] = {"N": download_result.height}
+        else:
+            remove_expressions.append("#Height")
+
+        if download_result.frame_count is not None:
+            set_expressions.append("#FrameCount = :FrameCount")
+            set_values[":FrameCount"] = {"S": download_result.frame_count}
+        else:
+            remove_expressions.append("#FrameCount")
+
+        if download_result.video_codec_name is not None:
+            set_expressions.append("#VideoCodecName = :VideoCodecName")
+            set_values[":VideoCodecName"] = {"S": download_result.video_codec_name}
+        else:
+            remove_expressions.append("#VideoCodecName")
+
+        if download_result.video_codec_tag_string is not None:
+            set_expressions.append("#VideoCodecTagString = :VideoCodecTagString")
+            set_values[":VideoCodecTagString"] = {
+                "S": download_result.video_codec_tag_string
+            }
+        else:
+            remove_expressions.append("#VideoCodecTagString")
+
+        if download_result.audio_codec_name is not None:
+            set_expressions.append("#AudioCodecName = :AudioCodecName")
+            set_values[":AudioCodecName"] = {"S": download_result.audio_codec_name}
+        else:
+            remove_expressions.append("#AudioCodecName")
+
+        if download_result.audio_codec_tag_string is not None:
+            set_expressions.append("#AudioCodecTagString = :AudioCodecTagString")
+            set_values[":AudioCodecTagString"] = {
+                "S": download_result.audio_codec_tag_string
+            }
+        else:
+            remove_expressions.append("#AudioCodecTagString")
+
         try:
             dynamodb.update_item(
                 TableName=table_name,
                 Key={"VideoId": {"S", video_id}},
-                AttributeUpdates={
-                    "Status": {
-                        "Action": "PUT",
-                        "Value": {"S": "downloaded"},
-                    },
-                    "ObjectKey": {
-                        "Action": "PUT",
-                        "Value": {"S": object_key},
-                    },
-                    "ContentType": {
-                        "Action": "PUT",
-                        "Value": {"S": download_result.content_type},
-                    },
-                    "Size": {
-                        "Action": "PUT",
-                        "Value": {"S": download_result.size},
-                    },
-                    "Duration": {
-                        "Action": "PUT",
-                        "Value": {"S": download_result.duration},
-                    },
-                    "Width": {
-                        "Action": "PUT",
-                        "Value": {"N": download_result.width},
-                    },
-                    "Height": {
-                        "Action": "PUT",
-                        "Value": {"N": download_result.height},
-                    },
-                    "FrameCount": {
-                        "Action": "PUT",
-                        "Value": {"S": download_result.frame_count},
-                    },
-                    "VideoCodecName": {
-                        "Action": "PUT",
-                        "Value": {"S": download_result.video_codec_name},
-                    },
-                    "VideoCodecTagString": {
-                        "Action": "PUT",
-                        "Value": {"S": download_result.video_codec_tag_string},
-                    },
-                    "AudioCodecName": {
-                        "Action": "PUT",
-                        "Value": {"S": download_result.audio_codec_name},
-                    },
-                    "AudioCodecTagString": {
-                        "Action": "PUT",
-                        "Value": {"S": download_result.audio_codec_tag_string},
-                    },
+                UpdateExpression=(
+                    "SET {}" % ", ".join(set_expressions)
+                    + (
+                        (" REMOVE " + ", ".join(remove_expressions))
+                        if len(remove_expressions) > 0
+                        else ""
+                    )
+                ),
+                ExpressionAttributeNames={
+                    "#Status": "Status",
+                    "#ObjectKey": "ObjectKey",
+                    "#ContentType": "ContentType",
+                    "#Size": "Size",
+                    "#Duration": "Duration",
+                    "#Width": "Width",
+                    "#Height": "Height",
+                    "#FrameCount": "FrameCount",
+                    "#VideoCodecName": "VideoCodecName",
+                    "#VideoCodecTagString": "VideoCodecTagString",
+                    "#AudioCodecName": "AudioCodecName",
+                    "#AudioCodecTagString": "AudioCodecTagString",
+                },
+                ExpressionAttributeValues={
+                    **set_values,
                 },
             )
         except botocore.exceptions.ClientError:
