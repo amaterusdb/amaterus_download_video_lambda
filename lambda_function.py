@@ -299,9 +299,9 @@ def lambda_handler(event: dict, context: dict) -> None:
                 TableName=table_name,
                 Key={"VideoId": {"S", video_id}},
                 UpdateExpression=(
-                    "SET {}" % ", ".join(set_expressions)
+                    "SET {}".format(", ".join(set_expressions))
                     + (
-                        (" REMOVE " + ", ".join(remove_expressions))
+                        " REMOVE {}".format(", ".join(remove_expressions))
                         if len(remove_expressions) > 0
                         else ""
                     )
