@@ -1,0 +1,45 @@
+[tool.pysen]
+version = "0.11"
+
+[tool.pysen.lint]
+enable_black = true
+enable_flake8 = true
+enable_isort = true
+enable_mypy = true
+mypy_preset = "strict"
+line_length = 88
+# TODO: Update to py312
+py_version = "py311"
+
+  [[tool.pysen.lint.mypy_targets]]
+    paths = ["."]
+
+[tool.poetry]
+package-mode = false
+name = "amaterus-download-video-lambda"
+version = "0.0.0"
+description = ""
+authors = ["aoirint <aoirint@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "~3.12"
+boto3 = "^1.34.117"
+pydantic = "^2.7.2"
+yt-dlp = "^2024.5.27"
+ffmpeg-python = "^0.2.0"
+
+
+[tool.poetry.group.dev.dependencies]
+pysen = "^0.11.0"
+black = "^24.4.2"
+isort = "^5.13.2"
+flake8 = "^7.0.0"
+flake8-bugbear = "^24.4.26"
+mypy = "^1.10.0"
+pytest = "^8.2.1"
+boto3-stubs = {extras = ["dynamodb", "s3", "sqs"], version = "^1.34.117"}
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

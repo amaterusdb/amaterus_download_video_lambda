@@ -1,0 +1,123 @@
+name: Build Docker
+
+on:
+  push:
+    branches:
+      - 'main'
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - 'main'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+jobs:
+  docker-build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Setup Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Generate Docker metadata for ghcr.io
+        id: meta-ghcr
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=pep440,pattern={{version}}
+            type=pep440,pattern={{major}}
+            type=pep440,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Generate Docker metadata for Amazon ECR
+        id: meta-ecr
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ vars.ECR_REPOSITORY }}
+          tags: |
+            type=ref,event=branch
+            type=pep440,pattern={{version}}
+            type=pep440,pattern={{major}}
+
+      - name: Generate Docker build cache metadata
+        id: meta-buildcache
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch,suffix=-buildcache
+            type=ref,event=pr,suffix=-buildcache
+
+      - name: Generate Docker build cache metadata vars
+        id: meta-buildcache-vars
+        shell: bash
+        env:
+          DOCKER_METADATA_BUILDCACHE_OUTPUT_JSON: ${{ steps.meta-buildcache.outputs.json }}
+        run: |
+          {
+            echo "cache-from<<EOF"
+            for tag in $(jq -r '.tags[]' <<< "$DOCKER_METADATA_BUILDCACHE_OUTPUT_JSON"); do
+              echo "type=registry,ref=${tag}"
+            done
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+          {
+            echo "cache-to<<EOF"
+            for tag in $(jq -r '.tags[]' <<< "$DOCKER_METADATA_BUILDCACHE_OUTPUT_JSON"); do
+              echo "type=registry,ref=${tag},mode=max"
+            done
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+      - name: Login to GitHub Container Registry (ghcr.io)
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: 'ghcr.io'
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to AWS
+        if: github.event_name != 'pull_request'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ vars.ECR_REGION }}
+          role-to-assume: ${{ vars.ECR_ROLE_ARN }}
+
+      - name: Login to Amazon ECR
+        if: github.event_name != 'pull_request'
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and Deploy Docker image
+        uses: docker/build-push-action@v5
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          context: .
+          file: ./Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          platforms: linux/arm64
+          tags: |
+            ${{ steps.meta-ghcr.outputs.tags }}
+            ${{ steps.meta-ecr.outputs.tags }}
+          cache-from: ${{ steps.meta-buildcache-vars.outputs.cache-from }}
+          cache-to: ${{ steps.meta-buildcache-vars.outputs.cache-to }}
+          labels: ${{ steps.meta-ghcr.outputs.labels }}
+          annotations: ${{ steps.meta-ghcr.outputs.annotations }}
+          # Workaround: Disable provenance to avoid multi-platform Docker image due to AWS Lambda does not support it.
+          # https://stackoverflow.com/questions/65608802/cant-deploy-container-image-to-lambda-function
+          # https://github.com/docker/buildx/issues/1509#issuecomment-1378538197
+          provenance: false
