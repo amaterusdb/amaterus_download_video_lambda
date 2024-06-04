@@ -24,7 +24,7 @@ class AmaterusEnqueueDownloadVideoEvent(BaseModel):
 class AmaterusDownloadVideoSuccessResponse(BaseModel):
     result: Literal["success"] = Field(serialization_alias="Result")
     message: str = Field(serialization_alias="Message")
-    url: str = Field(serialization_alias="Url")
+    key: str = Field(serialization_alias="Key")
 
 
 class AmaterusDownloadVideoErrorResponse(BaseModel):
@@ -125,17 +125,8 @@ def lambda_handler(event: dict, context: dict) -> dict:
             logger.exception(error)
             raise Exception("Failed to upload video")
 
-    downloaded_video_url = s3.generate_presigned_url(
-        ClientMethod="get_object",
-        Params={
-            "Bucket": bucket,
-            "Key": object_key,
-        },
-        ExpiresIn=3600,
-    )
-
     return AmaterusDownloadVideoSuccessResponse(
         result="success",
         message="Ok",
-        url=downloaded_video_url,
+        key=object_key,
     ).model_dump()
