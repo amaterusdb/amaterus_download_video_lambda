@@ -18,7 +18,7 @@ logger = getLogger()
 
 
 class AmaterusEnqueueDownloadVideoEvent(BaseModel):
-    url: str = Field(serialization_alias="Url")
+    url: str = Field(validation_alias="Url")
 
 
 class AmaterusDownloadVideoSuccessResponse(BaseModel):
