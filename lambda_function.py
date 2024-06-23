@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from logging import getLogger
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Iterator, Literal
+from typing import Any, Iterator, Literal
 from uuid import uuid4
 
 import boto3
@@ -19,6 +19,8 @@ logger = getLogger()
 
 class AmaterusEnqueueDownloadVideoEvent(BaseModel):
     url: str = Field(validation_alias="Url")
+    format: str | None = Field(validation_alias="Format", default=None)
+    format_sort: str | None = Field(validation_alias="FormatSort", default=None)
 
 
 class AmaterusDownloadVideoSuccessResponse(BaseModel):
@@ -43,17 +45,29 @@ class DownloadVideoError(Exception):
 
 
 @contextmanager
-def download_video(video_url: str) -> Iterator[DownloadVideoResult]:
+def download_video(
+    video_url: str,
+    format: str | None,
+    format_sort: str | None,
+) -> Iterator[DownloadVideoResult]:
     with ExitStack() as stack:
         tmpdir = stack.enter_context(TemporaryDirectory())
 
+        ydl_opts: dict[str, Any] = {
+            "paths": {
+                "home": tmpdir,
+            },
+        }
+
+        if format is not None:
+            ydl_opts["format"] = format
+
+        if format_sort is not None:
+            ydl_opts["format_sort"] = format_sort
+
         ydl = stack.enter_context(
             YoutubeDL(
-                params={
-                    "paths": {
-                        "home": tmpdir,
-                    },
-                },
+                params=ydl_opts,
             ),
         )
 
@@ -101,13 +115,21 @@ def lambda_handler(event: dict, context: dict) -> dict:
         ).model_dump()
 
     video_url = event_data.url
+    format = event_data.format
+    format_sort = event_data.format_sort
 
     object_key = str(uuid4())
 
     s3 = boto3.client("s3")
     with ExitStack() as stack:
         try:
-            download_result = stack.enter_context(download_video(video_url=video_url))
+            download_result = stack.enter_context(
+                download_video(
+                    video_url=video_url,
+                    format=format,
+                    format_sort=format_sort,
+                ),
+            )
         except DownloadVideoError as error:
             logger.exception(error)
             raise Exception("Failed to download video")
