@@ -59,11 +59,11 @@ def match_filter_normal_video_or_live_vod(info: dict) -> str | None:
 
     if live_status == "not_live":
         # normal video
-        return
+        return None
 
     if live_status == "was_live":
         # VOD is already processed
-        return
+        return None
 
     if live_status == "is_live":
         return "The video is a live streaming video which is streaming currently"
