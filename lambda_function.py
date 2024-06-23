@@ -20,7 +20,7 @@ logger = getLogger()
 class AmaterusEnqueueDownloadVideoEvent(BaseModel):
     url: str = Field(validation_alias="Url")
     format: str | None = Field(validation_alias="Format", default=None)
-    format_sort: str | None = Field(validation_alias="FormatSort", default=None)
+    format_sort: list[str] | None = Field(validation_alias="FormatSort", default=None)
 
 
 class AmaterusDownloadVideoSuccessResponse(BaseModel):
@@ -48,7 +48,7 @@ class DownloadVideoError(Exception):
 def download_video(
     video_url: str,
     format: str | None,
-    format_sort: str | None,
+    format_sort: list[str] | None,
 ) -> Iterator[DownloadVideoResult]:
     with ExitStack() as stack:
         tmpdir = stack.enter_context(TemporaryDirectory())
@@ -62,7 +62,7 @@ def download_video(
         if format is not None:
             ydl_opts["format"] = format
 
-        if format_sort is not None:
+        if format_sort is not None and len(format_sort) > 0:
             ydl_opts["format_sort"] = format_sort
 
         ydl = stack.enter_context(
