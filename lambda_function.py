@@ -87,6 +87,7 @@ def download_video(
             "paths": {
                 "home": tmpdir,
             },
+            "cachedir": False,
             "match_filter": match_filter_normal_video_or_live_vod,
         }
 
