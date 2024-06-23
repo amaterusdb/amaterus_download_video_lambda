@@ -58,6 +58,7 @@ def match_filter_normal_video_or_live_vod(info: dict) -> str | None:
     live_status = info.get("live_status")
 
     if live_status == "not_live":
+        # normal video
         return
 
     if live_status == "was_live":
