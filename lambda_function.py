@@ -44,6 +44,35 @@ class DownloadVideoError(Exception):
     pass
 
 
+def match_filter_normal_video_or_live_vod(info: dict) -> str | None:
+    """
+    Accept:
+    - A normal video (live_status: not_live)
+    - A live streaming video whose VOD is processed (live_status: was_live)
+
+    Reject:
+    - A live streaming video which is streaming currently (live_status: is_live)
+    - A live streaming video whose VOD is not processed yet (live_status: post_live)
+    - Other videos
+    """
+    live_status = info.get("live_status")
+
+    if live_status == "not_live":
+        return
+
+    if live_status == "was_live":
+        # VOD is already processed
+        return
+
+    if live_status == "is_live":
+        return "The video is a live streaming video which is streaming currently"
+
+    if live_status == "post_live":
+        return "The video is a live streaming video whose VOD is not processed yet"
+
+    return f"The video has unknown live_status: {live_status}"
+
+
 @contextmanager
 def download_video(
     video_url: str,
@@ -57,6 +86,7 @@ def download_video(
             "paths": {
                 "home": tmpdir,
             },
+            "match_filter": match_filter_normal_video_or_live_vod,
         }
 
         if format is not None:
